@@ -1,6 +1,6 @@
 import os
 import uuid
-from flask_restful import Resource, Api , reqparse
+from flask_restful import Api
 from flask import Flask, abort, jsonify, request
 from flask_cors import CORS
 from averagedata import FilterData
@@ -12,7 +12,6 @@ api = Api(app)
 #define variable 
 @app.route('/upload/csv', methods=['POST'])
 def upload_csv():
-    print('I was called')
     if request.method == 'POST':
         #get file from request
         f = request.files['file']
@@ -30,7 +29,7 @@ def upload_csv():
         file_path = os.path.join(save_path,'data.csv')
         f.save(file_path)
         data = FilterData(file_path).filter_data_asJson(start_date=None,end_date=None)
-       #datasummary = FilterData(file_path).data_summary()
+        #datasummary = FilterData(file_path).data_summary()
         #send as api response in json format
         #response in date time format
         #send data in json format
@@ -41,12 +40,12 @@ def upload_csv():
 def get_summary():
     if request.method == 'GET':
         #find file in data folder
-       #start_date,end date from url
+        #start_date,end date from url
         start_date = request.args.get('start_date')
         end_date = request.args.get('end_date')
         file_path = os.path.join(os.getcwd(), 'data','data.csv')
-       # save_path = os.path.join(os.getcwd(), 'data')
-       # file_path = os.path.join(file_path, 'data.csv')
+        # save_path = os.path.join(os.getcwd(), 'data')
+        # file_path = os.path.join(file_path, 'data.csv')
         datasummary = FilterData(file_path).data_summary(start_date,end_date)
         #send as api response in json format
         return datasummary

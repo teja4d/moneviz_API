@@ -61,11 +61,12 @@ class FilterData:
     #function to send max average balance, min average balance, average balance , average credit, average debit
     def data_summary(self, start_date = None, end_date = None ):
         df = self.filter_data(start_date=start_date, end_date=end_date)
-        max_balance = df['closing_balance'].max().round(2)
-        min_balance = df['closing_balance'].min().round(2)
-        average_balance = df['closing_balance'].mean().round(2)
-        average_credit = df['credit_amount'].mean().round(2)
-        average_debit = df['debit_amount'].mean().round(2)
+        #from float to int and round
+        max_balance = df['closing_balance'].max()
+        min_balance = df['closing_balance'].min()
+        average_balance = df['closing_balance'].mean()
+        average_credit = df['credit_amount'].mean()
+        average_debit = df['debit_amount'].mean()
        #send date in the format dd/mm/yyyy without time
         #max_average_balance_date = df[df['average_balance'] == max_balance]['transaction_date'].dt.strftime('%d/%m/%Y').iloc[0]
         #min_average_balance_date = df[df['average_balance'] == min_balance]['transaction_date'].dt.strftime('%d/%m/%Y').iloc[0]

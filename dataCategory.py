@@ -1,3 +1,4 @@
+import datetime
 import pandas as pd;
 import uuid;
 import squarify;
@@ -109,6 +110,7 @@ class CategorizeData:
         df_group['height'] = df_group.apply(lambda x: x['rects']['dy'], axis=1)
         #df_group['children_rects'] = df_group.apply(lambda x: self.groupDatabyTransactionType(df_group), axis=1)
         df_group['category'] = df_group.apply(lambda x: "transaction", axis=1)
+        #df_group['line_graph'] = df_group.apply(lambda x: self.getLinePoints())
         df_group['recent_transaction'] = df_group.apply(lambda x: df[df['type'] == x['label']].tail(5), axis=1)
         df_group['rects_children'] = df_group.apply(lambda x: self.groupDatabyTransactionType(type = x['label'], x = x['x'], y=x['y'], width=x['width'], height=x['height'],child=True), axis=1)
         df_group.drop(['x', 'y', 'width', 'height'], axis=1, inplace=True)
@@ -313,4 +315,28 @@ class CategorizeData:
         return df_group['rects']
 
     def getLinePoints(self,width=None,height=None,):
-        pass
+        #python mdoule to generate line graph points over time
+        if width == None:
+            width = 1200
+        if height == None:
+            height = 600
+        #get data from df
+        df = self.df
+        #get avg balace each year
+        #convert transaction+date to date time
+        df['transaction_date'] = pd.to_datetime(df['transaction_date'])
+        df_year = df.groupby(df['transaction_date'].dt.year).mean()
+        #generate x,y coordinates over balance and year
+        x = df_year.index.tolist()
+        y = df_year['credit_amount'].tolist()
+        #generate line graph points
+        #return x,y as df
+        df_line = pd.DataFrame({'x':x,'y':y})
+        #If using all scalar values, you must pass an index
+        df_line['category'] = 'line'
+        df_line['rects'] = df_line.apply(lambda x: {'x':x['x'],'y':x['y'],'dx':width/len(x),'dy':height/len(y)}, axis=1)
+        #print(df_line)
+        
+
+        
+
