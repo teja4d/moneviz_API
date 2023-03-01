@@ -5,6 +5,7 @@ from flask import Flask, abort, jsonify, request
 from flask_cors import CORS
 from averagedata import FilterData
 from dataCategory import CategorizeData
+from timeline import DataTimeLine
 import json
 app = Flask(__name__)
 CORS(app)
@@ -134,5 +135,13 @@ def get_category_transaction():
         else :
             abort(404)
         return data_child.to_json(orient='records')
+@app.route('/getfrequency', methods=['GET'])
+def get_frequency():
+    if request.method == 'GET':
+        file_path = os.path.join(os.getcwd(), 'data','data.csv')
+        data_child = DataTimeLine(file_path).get_monthly_payment()
+        return data_child.to_json(orient='records')
+    else:
+        abort(404)
 if __name__ == '__main__':
     app.run(debug=True)

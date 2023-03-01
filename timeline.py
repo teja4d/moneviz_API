@@ -1,60 +1,68 @@
-import csv
-import datetime
-#df = pd.read_csv('data.csv', header=0)
-#df['Transaction Date'] = pd.to_datetime(df['Transaction Date'], format='%d/%m/%Y')
-# set the file name and open the file
-filename = "data.csv"
-#change transaction fromat from ='%d/%m/%Y' to '%Y-%m-%d'
+import pandas as pd;
+import re
+import uuid
 
-with open(filename, 'r') as file:
-    # read the CSV file
-    reader = csv.reader(file)
-    #add payment frequency header row to the csv file
-    
-    #
-    # skip the header row
-    header = next(reader)
-    # initialize the last transaction date and description
-    last_transaction_date = None
-    last_transaction_desc = None
-    # initialize a dictionary to keep track of transaction frequency
-    transaction_freq = {}
-    # loop through each row of the file
-    for row in reader:
-        # get the transaction date and description from the row '%d/%m/%Y' to '%Y-%m-%d'
+class DataTimeLine():
+    def __init__(self,file_path):
+        self.file_path = file_path
+        self.df = pd.read_csv(file_path, header=0)
+        self.df.columns = self.df.columns.str.replace(' ', '_')
+        self.df.columns = self.df.columns.str.lower()
+        self.df['id'] = self.df.groupby('transaction_description').ngroup() + 1
+        self.df['transaction_date'] = pd.to_datetime(self.df['transaction_date'], format='%d/%m/%Y')
+        #add     column sum of credit and debit
+        self.df = self.df.fillna(0)
+        self.df['amount'] = self.df['credit_amount'] + self.df['debit_amount']
+        #get date from transaction_date i,e if transaction_date is 1/1/2020 then get 1
+        self.df['date'] = self.df['transaction_date'].dt.day
+        #get month from transaction_date i,e if transaction_date is 1/1/2020 then get 1
+        self.df['month'] = self.df['transaction_date'].dt.month
+        self.df['year'] = self.df['transaction_date'].dt.year
+        self.df['first_transaction_date'] = self.df.groupby('id')['transaction_date'].transform('min')
+        #last_transaction_date
+        self.df['last_transaction_date'] = self.df.groupby('id')['transaction_date'].transform('max')
+        self.df['last_transaction_date'] = pd.to_datetime(self.df['last_transaction_date'], format='%d/%m/%Y')
+        self.df['first_transaction_date'] = pd.to_datetime(self.df['first_transaction_date'], format='%d/%m/%Y')
+        #drop
+        self.df.drop(['sort_code','account_number'],axis=1,inplace=True)
 
-        transaction_date = datetime.datetime.strptime(row[0], '%d/%m/%Y').date()
-        transaction_desc = row[1]
-        # check if the transaction description has been seen before
-        if transaction_desc not in transaction_freq:
-            # if it hasn't been seen, set the frequency to 'irregular'
-            transaction_freq[transaction_desc] = 'irregular'
-        # check if the transaction date is within 28-30 days of the last transaction date
-        if last_transaction_date is not None and (transaction_date - last_transaction_date).days in range(28, 31):
-            # if it is, update the frequency to 'monthly'
-            transaction_freq[transaction_desc] = 'monthly'
-        # update the last transaction date and description
-        last_transaction_date = transaction_date
-        last_transaction_desc = transaction_desc
-
-# update the CSV file with the new frequency information
-with open(filename, 'r') as file:
-    # read the CSV file
-    reader = csv.reader(file)
-    # skip the header row
-    header = next(reader)
-    # create a list of dictionaries for each row, with updated frequency information
-    rows = []
-    for row in reader:
-        row_dict = {header[i]: row[i] for i in range(len(header))}
-        transaction_desc = row_dict['Transaction Description']
-        row_dict['Payment Frequency'] = transaction_freq.get(transaction_desc, 'irregular')
-        rows.append(row_dict)
-
-# overwrite the CSV file with the updated rows
-with open(filename, 'w', newline='') as file:
-    # write the header row
-    writer = csv.DictWriter(file, fieldnames=header)
-    writer.writeheader()
-    # write the updated rows
-    writer.writerows(rows)
+    def is_monthly_payment(self,description):
+        data_frame = self.df
+        t_first = data_frame[data_frame['id'] == description]['first_transaction_date'].iloc[0]
+        t_last = data_frame[data_frame['id'] == description]['last_transaction_date'].iloc[0]
+        #get months between first and last_transaction_date
+        months = (t_last.year - t_first.year) * 12 + (t_last.month - t_first.month)
+        # Load CSV file into pandas DataFrame
+        #data_frame = pd.read_csv(file_path)
+        # Extract potential monthly payments based on transaction_description
+        data_frame['transaction_date'] = pd.to_datetime(data_frame['transaction_date'], format='%d/%m/%Y')
+   #     Check if there are at least 3 potential weekly payments within the past 6 months
+        # assume today is 1/1/2020
+        transaction_date = pd.to_datetime(t_first,format='%d/%m/%Y');
+        mask = data_frame['id']==description
+        potential_monthly_payments = data_frame[mask]
+        six_months_ago = transaction_date - pd.DateOffset(months=months)
+        num_potential_monthly_payments = potential_monthly_payments[potential_monthly_payments['transaction_date'] >= six_months_ago].shape[0]
+        if num_potential_monthly_payments >= months-4 if months > 4  else months :
+            #check if there is only one transaction in each month with same trasaaction description
+            if potential_monthly_payments.groupby(['id','month','year']).size().max() == 1:
+            # Check if the amount is the same for all potential monthly payments
+                if potential_monthly_payments['amount'].nunique() == 1:
+                    return True
+            #check if it happens on the 26 to 30 days apart of previous transaction_date
+                if potential_monthly_payments['transaction_date'].diff().dt.days.between(26,30).all():
+                     return True
+                else:
+                     return False
+        else:
+            return False
+        
+    def get_monthly_payment(self):
+        df=self.df
+        df['payment_cycle'] = df['id'].apply(lambda x: 'monthly' if self.is_monthly_payment(x) else 'irregular')
+        #print only the transaction_description which is monthly payment
+        #df[df['Payment Cycle'] == 'monthly']
+        df['transaction_date'] = df['transaction_date'].dt.strftime('%d/%m/%Y')
+        df['first_transaction_date'] = df['first_transaction_date'].dt.strftime('%d/%m/%Y')
+        df['last_transaction_date'] = df['last_transaction_date'].dt.strftime('%d/%m/%Y')
+        return df
