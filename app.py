@@ -139,7 +139,8 @@ def get_category_transaction():
 def get_frequency():
     if request.method == 'GET':
         file_path = os.path.join(os.getcwd(), 'data','data.csv')
-        data_child = DataTimeLine(file_path).get_monthly_payment()
+        category = request.args.get('type')
+        data_child = DataTimeLine(file_path,category).get_monthly_payment(category)
         return data_child.to_json(orient='records')
     else:
         abort(404)
